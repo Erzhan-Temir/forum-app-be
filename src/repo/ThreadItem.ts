@@ -25,7 +25,7 @@ export class ThreadItem extends Auditable {
 
   @ManyToOne(
     () => User,
-    (user) => user.threads
+    (user) => user.threadItems
   )
   user: User;
 
