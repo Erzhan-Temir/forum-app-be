@@ -56,7 +56,7 @@ export const login = async (
   password: string
 ): Promise<UserResult> => {
   const user = await User.findOne({
-    where: { userName },
+    where: {userName},
   });
   if (!user) {
     return {
@@ -84,7 +84,7 @@ export const login = async (
 
 export const logout = async (userName: string): Promise<string> => {
   const user = await User.findOne({
-    where: { userName },
+    where: {userName},
   });
 
   if (!user) {
@@ -92,4 +92,56 @@ export const logout = async (userName: string): Promise<string> => {
   }
 
   return "User logged off.";
+};
+
+export const me = async (id: string): Promise<UserResult> => {
+  const user = await User.findOne({
+    where: {id},
+    relations: [
+      "threads",
+      "threads.threadItems",
+      "threadItems",
+      "threadItems.thread",
+    ],
+  });
+
+  if (!user) {
+    return {
+      messages: ["User not found."],
+    };
+  }
+
+  if (!user.confirmed) {
+    return {
+      messages: ["User has not confirmed their registration email yet."],
+    };
+  }
+
+  user.password = "";
+  return {
+    user: user,
+  };
+};
+
+export const changePassword = async (
+  id: string,
+  newPassword: string
+): Promise<string> => {
+  const user = await User.findOne({
+    where: {id},
+  });
+
+  if (!user) {
+    return "User not found.";
+  }
+
+  if (!user.confirmed) {
+    return "User has not confirmed their registration email yet.";
+  }
+
+  const salt = await bcrypt.genSalt(saltRounds);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+  user.password = hashedPassword;
+  user.save();
+  return "Password changed successfully.";
 };
