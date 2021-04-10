@@ -2,6 +2,7 @@ import {isThreadBodyValid, isThreadTitleValid} from "../common/validators/Thread
 import {QueryArrayResult, QueryOneResult} from "./QueryArrayResult";
 import {Thread} from "./Thread";
 import {ThreadCategory} from "./ThreadCategory";
+import {ThreadItem} from "./ThreadItem";
 import {User} from "./User";
 
 export const createThread = async (
@@ -54,19 +55,37 @@ export const createThread = async (
     };
   }
 
-  return {
-    messages: ["Thread created successfully."],
-  };
+  return { messages: [thread.id]};
 };
 
 export const getThreadById = async (
   id: string
 ): Promise<QueryOneResult<Thread>> => {
-  const thread = await Thread.findOne({ id });
+  const thread = await Thread.findOne({
+    where: {
+      id,
+    },
+    relations: [
+      "user",
+      "threadItems",
+      "threadItems.user",
+      "threadItems.thread",
+      "category",
+    ],
+  });
+
   if (!thread) {
     return {
       messages: ["Thread not found."],
     };
+  }
+
+  if (thread.threadItems) {
+    thread.threadItems.sort((a: ThreadItem, b: ThreadItem) => {
+      if (a.createdOn > b.createdOn) return -1;
+      if (a.createdOn < b.createdOn) return 1;
+      return 0;
+    });
   }
 
   return {
@@ -78,8 +97,10 @@ export const getThreadsByCategoryId = async (
   categoryId: string
 ): Promise<QueryArrayResult<Thread>> => {
   const threads = await Thread.createQueryBuilder("thread")
-    .where(`thread."categoryId" = :categoryId`, { categoryId })
+    .where(`thread."categoryId" = :categoryId`, {categoryId})
     .leftJoinAndSelect("thread.category", "category")
+    .leftJoinAndSelect("thread.threadItems", "threadItems")
+    .leftJoinAndSelect("thread.user", "user")
     .orderBy("thread.createdOn", "DESC")
     .getMany();
 
